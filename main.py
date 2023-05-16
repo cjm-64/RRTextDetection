@@ -3,89 +3,73 @@ import cv2
 import easyocr
 import matplotlib.pyplot as plt
 import os
-import multiprocessing
+import pandas as pd
+import xlwt
+import openpyxl
 import collections
 
-ImageBox = collections.namedtuple('ImageBox', ['filename', 'text', 'text_n', 'box_start_x', 'box_start_y', 'box_end_x', 'box_end_y'])
+# Each entry to list is: ['filename', 'text', 'text_n', 'box_area']
+
+def writeToExcel(text):
+    output_name = 'output.xlsx'
+
+    out_df = pd.DataFrame(text, columns=['filename', 'text', 'text_n', 'box_area'])
+    out_df.to_excel(output_name, index=False)
 
 
-def textSearch(img, reader, line_col, file):
+def textSearch(img, reader, line_col, file, img_with_TD):
     text = reader.readtext(img, workers=len(os.sched_getaffinity(0)))
-    print(text)
     n = 0
-    img_breakdown = []
     if not text:
         print("No text")
-        ImageBox(
-            filename=file,
-            text="No Text",
-            text_n=n,
-            box_start_x=0,
-            box_start_y=0,
-            box_end_x=0,
-            box_end_y=0
-        )
-        img_breakdown.append(ImageBox)
+        img_with_TD.append([file, "No Text", n, 0])
     for t in text:
         boundbox, imgtext, score = t
-        cv2.rectangle(img, (round(boundbox[0][0]), round(boundbox[0][1])), (round(boundbox[2][0]), round(boundbox[2][1])), line_col, 5)
-        ImageBox(
-            filename=file,
-            text=imgtext,
-            text_n=n,
-            box_start_x=round(boundbox[0][0]),
-            box_start_y=round(boundbox[0][1]),
-            box_end_x=round(boundbox[2][0]),
-            box_end_y=round(boundbox[2][1])
-        )
-        img_breakdown.append(ImageBox)
+        cv2.rectangle(img,
+                      (round(boundbox[0][0]), round(boundbox[0][1])),
+                      (round(boundbox[2][0]), round(boundbox[2][1])),
+                      line_col,
+                      5)
+        box_height = round(boundbox[2][1] - boundbox[0][1])
+        box_width = round(boundbox[2][0] - boundbox[0][0])
+        box_area = box_height*box_width
+        img_with_TD.append([file, imgtext, n, box_area])
         n += 1
+
     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.show()
-    # input("Press Enter to continue...")
-    return img_breakdown
-
-def showANDtell(reader, line_col, folder):
-    file = '101695140125063282961832005960060675282_1.jpg'
-    img = cv2.imread(os.path.join(folder,file))
-    start = time.time()
-    textSearch(img, reader, line_col)
-    print(time.time()-start)
 
 def main():
     # creat list of tuples that have the info we need for each image
     img_with_TD = []
     reader = easyocr.Reader(['en'], gpu=False)
     line_col = (0, 255, 0)
-    folder = 'Images'
+    folder = 'TestingImages'
 
     n = 0
     tot_time = 0
+    folderlist = os.listdir(folder)
+    folderlist.sort()
     for file in os.listdir(folder):
         print(file)
-        if file.endswith(".jpg") and n<2:
+        if file.endswith(".jpg"):
             start = time.time()
             img = cv2.imread(os.path.join(folder, file))
-            img_with_TD.append(textSearch(img, reader, line_col, file))
+            textSearch(img, reader, line_col, file, img_with_TD)
             print(time.time() - start)
             tot_time += time.time() - start
         else:
             break
         n += 1
 
+    print("Total time: ", tot_time)
+    print("Avg time: ", tot_time / n)
+
     print(len(img_with_TD))
     for i in img_with_TD:
-        for j in i:
-            print(type(j))
-            print(j.filename)
+        print(i)
 
-    print("Total time: ", tot_time)
-    print("Avg time: ", tot_time/n)
-
-
-
-
-    # showANDtell(reader, line_col, folder)
+    writeToExcel(img_with_TD)
 
 if __name__ == '__main__':
     main()
