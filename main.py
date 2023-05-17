@@ -5,17 +5,32 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import math
+import profanity_check
 import xlwt
 import openpyxl
 import collections
 
-# Each entry to list is: ['filename', 'text', 'text_n', 'box_area', 'nondrant']
+# Each entry to list is: ['filename',
+#                         'text',
+#                         'text_n',
+#                         'box_area (%)',
+#                         'Text Length',
+#                         'nondrant',
+#                         'is profane']
+
 
 def writeToExcel(text):
     output_name = 'output.xlsx'
 
-    out_df = pd.DataFrame(text, columns=['filename', 'text', 'text_n', 'box_area (%)', 'nondrant'])
+    out_df = pd.DataFrame(text, columns=['filename',
+                                         'text',
+                                         'text_n',
+                                         'box_area (%)',
+                                         'Text Length',
+                                         'nondrant',
+                                         'is profane'])
     out_df.to_excel(output_name, index=False)
+
 
 def findTextLocInImage(Sx,Sy,Ex,Ey, rows, cols):
     Midx = ((Ex-Sx)/2)+Sx
@@ -72,14 +87,20 @@ def textSearch(img, reader, line_col, file, img_with_TD):
         box_width = End_x - Start_x
         box_area = box_height*box_width
         box_area_pct = (box_area/img_pixels)*100
-        placeholder = [file, imgtext, n, box_area_pct]
-        placeholder.append(findTextLocInImage(Start_x, Start_y,End_x, End_y, rows, cols))
+        placeholder = [file,
+                       imgtext,
+                       n,
+                       box_area_pct,
+                       len(imgtext), profanity_check.predict([imgtext]),
+                       findTextLocInImage(Start_x, Start_y,End_x, End_y, rows, cols)
+                       ]
 
         img_with_TD.append(placeholder)
         n += 1
 
     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.show()
+
 
 def main():
     # creat list of to fill with lists of info
