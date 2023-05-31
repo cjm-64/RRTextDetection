@@ -5,10 +5,13 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import math
-import profanity_check
-import xlwt
-import openpyxl
-import collections
+from better_profanity import profanity
+import multiprocessing
+import faulthandler
+# import profanity_check
+# import xlwt
+# import openpyxl
+# import collections
 
 # Each entry to list is: ['filename',
 #                         'text',
@@ -64,12 +67,16 @@ def findTextLocInImage(Sx,Sy,Ex,Ey, rows, cols):
 
 
 def textSearch(img, reader, line_col, file, img_with_TD):
-    text = reader.readtext(img, workers=len(os.sched_getaffinity(0)))
+    print("in TextSearch")
+    print("Workers: ", multiprocessing.cpu_count())
+    text = reader.readtext(img)
+    print("read text")
     n = 0
     if not text:
         print("No text")
         img_with_TD.append([file, "No Text", n, 0, 0])
     for t in text:
+        print("text num: ", n)
         placeholder = []
         rows, cols, chan = img.shape
         img_pixels = rows*cols
@@ -91,7 +98,8 @@ def textSearch(img, reader, line_col, file, img_with_TD):
                        imgtext,
                        n,
                        box_area_pct,
-                       len(imgtext), profanity_check.predict([imgtext]),
+                       len(imgtext),
+                       profanity.contains_profanity(imgtext),
                        findTextLocInImage(Start_x, Start_y,End_x, End_y, rows, cols)
                        ]
 
@@ -105,7 +113,7 @@ def textSearch(img, reader, line_col, file, img_with_TD):
 def main():
     # creat list of to fill with lists of info
     img_with_TD = []
-    reader = easyocr.Reader(['en'], gpu=False)
+    reader = easyocr.Reader(['en'], gpu=True)
     line_col = (0, 255, 0)
     folder = 'TestingImages'
 
@@ -113,27 +121,31 @@ def main():
     tot_time = 0
     folderlist = os.listdir(folder)
     folderlist.sort()
-    for file in os.listdir(folder):
+    print(os.listdir())
+    for file in os.listdir():
         print(file)
         if file.endswith(".jpg"):
             start = time.time()
-            img = cv2.imread(os.path.join(folder, file))
+            # img = cv2.imread(os.path.join(folder, file))
+            img = cv2.imread(file)
+            print("load image")
             textSearch(img, reader, line_col, file, img_with_TD)
             print(time.time() - start)
             tot_time += time.time() - start
         else:
-            break
+            print("Not jpeg")
         n += 1
 
-    print("Total time: ", tot_time)
-    print("Avg time: ", tot_time / n)
-
-    print(len(img_with_TD))
-    for i in img_with_TD:
-        print(i)
-
-    writeToExcel(img_with_TD)
+    # print("Total time: ", tot_time)
+    # print("Avg time: ", tot_time / n)
+    #
+    # print(len(img_with_TD))
+    # for i in img_with_TD:
+    #     print(i)
+    #
+    # writeToExcel(img_with_TD)
 
 if __name__ == '__main__':
+    faulthandler.enable()
     main()
     print("Hello World\n")
