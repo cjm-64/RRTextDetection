@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import math
-import profanity_check
+from better_profanity import profanity
+import multiprocessing
 import xlwt
 import openpyxl
-import collections
+# import collections
 
 # Each entry to list is: ['filename',
 #                         'text',
@@ -19,17 +20,17 @@ import collections
 #                         'is profane']
 
 
-def writeToExcel(text):
-    output_name = 'output.xlsx'
+def writeToExcel(text, curr_path):
+    output_loc = os.path.join(curr_path, 'output.xlsx')
 
     out_df = pd.DataFrame(text, columns=['filename',
                                          'text',
                                          'text_n',
                                          'box_area (%)',
                                          'Text Length',
-                                         'nondrant',
-                                         'is profane'])
-    out_df.to_excel(output_name, index=False)
+                                         'is profane',
+                                         'nondrant'])
+    out_df.to_excel(output_loc, index=False)
 
 
 def findTextLocInImage(Sx,Sy,Ex,Ey, rows, cols):
@@ -59,16 +60,16 @@ def findTextLocInImage(Sx,Sy,Ex,Ey, rows, cols):
         # Third Row
         Row_loc.append([7, 8, 9])
 
-    print("Centroid Location: ", (list(set(Col_loc[0]).intersection(Row_loc[0]))[0]))
+    # print("Centroid Location: ", (list(set(Col_loc[0]).intersection(Row_loc[0]))[0]))
     return (list(set(Col_loc[0]).intersection(Row_loc[0]))[0])
 
 
 def textSearch(img, reader, line_col, file, img_with_TD):
-    text = reader.readtext(img, workers=len(os.sched_getaffinity(0)))
+    text = reader.readtext(img, workers=multiprocessing.cpu_count())
     n = 0
     if not text:
-        print("No text")
-        img_with_TD.append([file, "No Text", n, 0, 0])
+        # print("No text")
+        img_with_TD.append([file, "No Text", n, 0, 0, 0, 0])
     for t in text:
         placeholder = []
         rows, cols, chan = img.shape
@@ -87,53 +88,59 @@ def textSearch(img, reader, line_col, file, img_with_TD):
         box_width = End_x - Start_x
         box_area = box_height*box_width
         box_area_pct = (box_area/img_pixels)*100
+        # print(imgtext)
         placeholder = [file,
                        imgtext,
                        n,
-                       box_area_pct,
-                       len(imgtext), profanity_check.predict([imgtext]),
+                       abs(box_area_pct),
+                       len(imgtext),
+                       profanity.contains_profanity(imgtext),
                        findTextLocInImage(Start_x, Start_y,End_x, End_y, rows, cols)
                        ]
 
         img_with_TD.append(placeholder)
         n += 1
 
-    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    plt.show()
+    # plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    # plt.show()
 
 
 def main():
-    # creat list of to fill with lists of info
+    # create list of to fill with lists of info
     img_with_TD = []
     reader = easyocr.Reader(['en'], gpu=False)
     line_col = (0, 255, 0)
-    folder = 'TestingImages'
+    main_dir = 'G:\Dropbox\Dropbox\ResearchRotation\TD_image_groups'
 
     n = 0
     tot_time = 0
-    folderlist = os.listdir(folder)
-    folderlist.sort()
-    for file in os.listdir(folder):
-        print(file)
-        if file.endswith(".jpg"):
-            start = time.time()
-            img = cv2.imread(os.path.join(folder, file))
-            textSearch(img, reader, line_col, file, img_with_TD)
-            print(time.time() - start)
-            tot_time += time.time() - start
+    folderlist = os.listdir(main_dir)
+    for folder in folderlist:
+        curr_dir = os.path.join(main_dir, folder)
+        print(curr_dir)
+        # if n > 9:
+        #     break
+        if os.path.exists(os.path.join(curr_dir, 'output.xlsx')):
+            n += 1
+            continue
         else:
-            break
+            filenum = 0
+            for file in os.listdir(curr_dir):
+                if file.endswith(".jpg"):
+                    print("Percent Completion: ", (filenum/len(os.listdir(curr_dir)))*100, "%")
+                    start = time.time()
+                    img = cv2.imread(os.path.join(curr_dir, file))
+                    textSearch(img, reader, line_col, file, img_with_TD)
+                    # print(time.time() - start)
+                    tot_time += time.time() - start
+                    filenum += 1
+            print("Total time: ", tot_time)
+            print("Avg time: ", tot_time / len(os.listdir(curr_dir)))
+            writeToExcel(img_with_TD, curr_dir)
+        img_with_TD.clear()
         n += 1
 
-    print("Total time: ", tot_time)
-    print("Avg time: ", tot_time / n)
-
-    print(len(img_with_TD))
-    for i in img_with_TD:
-        print(i)
-
-    writeToExcel(img_with_TD)
 
 if __name__ == '__main__':
     main()
-    print("Hello World\n")
+    print("\nHello World")
