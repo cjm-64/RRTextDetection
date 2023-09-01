@@ -11,6 +11,13 @@ def get_category_token(annotation_df, token, category_df):
     else:
         return 'No Category'
 
+def get_bounding_box(annotation_df, token):
+    if annotation_df.at[annotation_df.token[annotation_df.sample_data_token == token].index.values.astype(int)[0], 'category_token']:
+        bound_box = annotation_df.at[annotation_df.token[annotation_df.sample_data_token == token].index.values.astype(int)[0], 'bbox']
+        return bound_box
+    else:
+        return 'No BB'
+
 def get_attribute_token(annotation_df, token, attribute_df):
     if annotation_df.at[annotation_df.token[annotation_df.sample_data_token == token].index.values.astype(int)[0], 'attribute_tokens']:
         attr_id = annotation_df.at[annotation_df.token[annotation_df.sample_data_token == token].index.values.astype(int)[0], 'attribute_tokens']
@@ -46,6 +53,7 @@ def main():
             output_data.loc[len(output_data.index)] = [sd_df.at[sd_df.token[sd_df.token == token].index.values.astype(int)[0], 'filename'].split("/")[2],
                                                        token,
                                                        get_category_token(annotation_df, token, category_df),
+                                                       get_bounding_box(annotation_df, token),
                                                        get_attribute_token(annotation_df, token, attribute_df)]
 
     output_data.to_excel('output.xlsx', index=False)
