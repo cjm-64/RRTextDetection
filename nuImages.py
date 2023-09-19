@@ -73,20 +73,27 @@ def get_attribute_token(annotation_df, token, attribute_df):
         return 'No Annotation'
 
 def main():
-    json_folder = 'full\\v1.0-train'
+    # json_folder = 'v1.0-mini'
+    json_folder = 'nuimages-v1.0-all-metadata\\v1.0-train'
     json_name = 'attribute.json'
     attribute_df = pd.read_json(os.path.join(json_folder, json_name))
+    print(attribute_df.shape)
 
     json_name = 'category.json'
     category_df = pd.read_json(os.path.join(json_folder, json_name))
+    print(category_df.shape)
 
     json_name = 'sample_data.json'
     sd_df = pd.read_json(os.path.join(json_folder, json_name))
+    print(sd_df.shape)
 
     json_name = 'object_ann.json'
     annotation_df = pd.read_json(os.path.join(json_folder, json_name))
+    print(annotation_df.shape)
 
     output_data = pd.DataFrame(columns = ['filename', 'sample_data_token', 'category_token', 'bound_box_size', 'bound_box_loc', 'attribute_token'])
+    loopstart = time.time()
+    count = 0
     for token in sd_df['token']:
         if token in set(annotation_df['sample_data_token']):
             BB = get_bounding_box(annotation_df, token)
@@ -96,6 +103,9 @@ def main():
                                                        get_BoundingBox_size(BB),
                                                        get_BoundingBox_loc(BB),
                                                        get_attribute_token(annotation_df, token, attribute_df)]
+        count += 1
+        print(count)
+        print(time.time() - loopstart)
 
     output_data.to_excel('output.xlsx', index=False)
 
